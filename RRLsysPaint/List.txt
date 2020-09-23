@@ -1,0 +1,530 @@
+     1                                  ; LSysDraw.asm  by Robert Rayment  June 2002
+     2                                  
+     3                                  %macro movab 2      ; name & num of parameters
+     4                                    push dword %2     ; 2nd param
+     5                                    pop dword %1      ; 1st param
+     6                                  %endmacro           ; use  movab %1,%2
+     7                                  ; Allows eg movab bmW,[ebx+4]
+     8                                  
+     9                                  ; Structure from VB
+    10                                  %define PICW            [ebp-4]
+    11                                  %define PICH            [ebp-8]
+    12                                  %define PtrByteArray    [ebp-12]
+    13                                  %define PtrPICArray     [ebp-16]
+    14                                  %define LL              [ebp-20]
+    15                                  %define Xs              [ebp-24]
+    16                                  %define Ys              [ebp-28]
+    17                                  %define zRed            [ebp-32]
+    18                                  %define zGreen          [ebp-36]
+    19                                  %define zBlue           [ebp-40]
+    20                                  %define zRedAdj         [ebp-44]
+    21                                  %define zGreenAdj       [ebp-48]
+    22                                  %define zBlueAdj        [ebp-52]
+    23                                  %define lngRed          [ebp-56]
+    24                                  %define lngGreen        [ebp-60]
+    25                                  %define lngBlue         [ebp-64]
+    26                                  %define XStep           [ebp-68]
+    27                                  %define YStep           [ebp-72]
+    28                                  %define XStepMult       [ebp-76]
+    29                                  %define YStepMult       [ebp-80]
+    30                                  %define zSinAngP        [ebp-84]
+    31                                  %define zCosAngP        [ebp-88]
+    32                                  %define zSinAngN        [ebp-92]
+    33                                  %define zCosAngN        [ebp-96]
+    34                                  
+    35                                  %define zTemp   [ebp-100]
+    36                                  
+    37                                  ; Bresenham line drawing
+    38                                  %define ix1     [ebp-104]
+    39                                  %define iy1     [ebp-108]
+    40                                  %define ix2     [ebp-112]
+    41                                  %define iy2     [ebp-116]
+    42                                  %define idx     [ebp-120]
+    43                                  %define idy     [ebp-124]
+    44                                  %define incx    [ebp-128]
+    45                                  %define jkstep  [ebp-132]
+    46                                  %define id      [ebp-136]
+    47                                  %define ainc    [ebp-140]
+    48                                  %define binc    [ebp-144]
+    49                                  %define j       [ebp-148]
+    50                                  %define k       [ebp-152]
+    51                                  %define ix      [ebp-156]
+    52                                  %define iy      [ebp-160]
+    53                                  %define ixp     [ebp-164]
+    54                                  %define iyp     [ebp-168]
+    55                                  
+    56                                  [bits 32]
+    57                                  
+    58 00000000 55                          push ebp
+    59 00000001 89E5                        mov ebp,esp
+    60 00000003 81ECA8000000                sub esp,168
+    61 00000009 57                          push edi   
+    62 0000000A 56                          push esi
+    63 0000000B 53                          push ebx
+    64                                  
+    65                                  ;-------------------------------
+    66                                      ; Copy structure
+    67 0000000C 8B5D08                      mov ebx,[ebp+8]   ; PtrStruc
+    68                                      
+    69                                      movab PICW,         [ebx] 
+    70 0000000F FF33                <1>   push dword %2
+    71 00000011 8F45FC              <1>   pop dword %1
+    72                                      movab PICH,         [ebx+4]
+    73 00000014 FF7304              <1>   push dword %2
+    74 00000017 8F45F8              <1>   pop dword %1
+    75                                      movab PtrByteArray, [ebx+8]
+    76 0000001A FF7308              <1>   push dword %2
+    77 0000001D 8F45F4              <1>   pop dword %1
+    78                                      movab PtrPICArray,  [ebx+12]
+    79 00000020 FF730C              <1>   push dword %2
+    80 00000023 8F45F0              <1>   pop dword %1
+    81                                      movab LL,           [ebx+16]
+    82 00000026 FF7310              <1>   push dword %2
+    83 00000029 8F45EC              <1>   pop dword %1
+    84                                      movab Xs,           [ebx+20]
+    85 0000002C FF7314              <1>   push dword %2
+    86 0000002F 8F45E8              <1>   pop dword %1
+    87                                      movab Ys,           [ebx+24]
+    88 00000032 FF7318              <1>   push dword %2
+    89 00000035 8F45E4              <1>   pop dword %1
+    90                                      movab zRed,         [ebx+28]
+    91 00000038 FF731C              <1>   push dword %2
+    92 0000003B 8F45E0              <1>   pop dword %1
+    93                                      movab zGreen,       [ebx+32]
+    94 0000003E FF7320              <1>   push dword %2
+    95 00000041 8F45DC              <1>   pop dword %1
+    96                                      movab zBlue,        [ebx+36]
+    97 00000044 FF7324              <1>   push dword %2
+    98 00000047 8F45D8              <1>   pop dword %1
+    99                                      movab zRedAdj,      [ebx+40]
+   100 0000004A FF7328              <1>   push dword %2
+   101 0000004D 8F45D4              <1>   pop dword %1
+   102                                      movab zGreenAdj,    [ebx+44]
+   103 00000050 FF732C              <1>   push dword %2
+   104 00000053 8F45D0              <1>   pop dword %1
+   105                                      movab zBlueAdj,     [ebx+48]
+   106 00000056 FF7330              <1>   push dword %2
+   107 00000059 8F45CC              <1>   pop dword %1
+   108                                      movab lngRed,       [ebx+52]
+   109 0000005C FF7334              <1>   push dword %2
+   110 0000005F 8F45C8              <1>   pop dword %1
+   111                                      movab lngGreen,     [ebx+56]
+   112 00000062 FF7338              <1>   push dword %2
+   113 00000065 8F45C4              <1>   pop dword %1
+   114                                      movab lngBlue,      [ebx+60]
+   115 00000068 FF733C              <1>   push dword %2
+   116 0000006B 8F45C0              <1>   pop dword %1
+   117                                      movab XStep,        [ebx+64]
+   118 0000006E FF7340              <1>   push dword %2
+   119 00000071 8F45BC              <1>   pop dword %1
+   120                                      movab YStep,        [ebx+68]
+   121 00000074 FF7344              <1>   push dword %2
+   122 00000077 8F45B8              <1>   pop dword %1
+   123                                      movab XStepMult,    [ebx+72]
+   124 0000007A FF7348              <1>   push dword %2
+   125 0000007D 8F45B4              <1>   pop dword %1
+   126                                      movab YStepMult,    [ebx+76]
+   127 00000080 FF734C              <1>   push dword %2
+   128 00000083 8F45B0              <1>   pop dword %1
+   129                                      movab zSinAngP,     [ebx+80]
+   130 00000086 FF7350              <1>   push dword %2
+   131 00000089 8F45AC              <1>   pop dword %1
+   132                                      movab zCosAngP,     [ebx+84]
+   133 0000008C FF7354              <1>   push dword %2
+   134 0000008F 8F45A8              <1>   pop dword %1
+   135                                      movab zSinAngN,     [ebx+88]
+   136 00000092 FF7358              <1>   push dword %2
+   137 00000095 8F45A4              <1>   pop dword %1
+   138                                      movab zCosAngN,     [ebx+92]
+   139 00000098 FF735C              <1>   push dword %2
+   140 0000009B 8F45A0              <1>   pop dword %1
+   141                                  ;-------------------------------
+   142                                  
+   143 0000009E B901000000                  mov ecx,1
+   144                                  ForLL:
+   145 000000A3 51                          push ecx
+   146                                      ; Pick up character
+   147 000000A4 8B7DF4                      mov edi,PtrByteArray
+   148 000000A7 8A07                        mov AL,byte [edi]
+   149 000000A9 47                          inc edi
+   150 000000AA 897DF4                      mov PtrByteArray,edi
+   151                                      ; Test character
+   152 000000AD 3C46                        cmp AL,70           ; F
+   153 000000AF 7409                        je anF
+   154 000000B1 3C47                        cmp AL,71           ; G
+   155 000000B3 7477                        je AdvanceXsYs      ; must be G No line drwaing
+   156 000000B5 E9A3000000                  jmp near TestPush
+   157                                  anF:
+   158                                      ; F                 ; Draw line
+   159 000000BA D945E8                      fld dword Xs
+   160 000000BD DB5D98                      fistp dword ix1     ; ix1 = Xs
+   161 000000C0 D945E4                      fld dword Ys
+   162 000000C3 DB5D94                      fistp dword iy1     ; iy1 = Ys
+   163                                      
+   164 000000C6 D945E8                      fld dword Xs
+   165 000000C9 D945BC                      fld dword XStep
+   166 000000CC DEC1                        faddp st1
+   167 000000CE DB5D90                      fistp dword ix2     ; ix2 = Xs+XStep
+   168 000000D1 D945E4                      fld dword Ys
+   169 000000D4 D945B8                      fld dword YStep
+   170 000000D7 DEC1                        faddp st1
+   171 000000D9 DB5D8C                      fistp dword iy2     ; iy2 = Ys+YStep
+   172                                  
+   173 000000DC E82B010000                  Call Bresen
+   174                                  
+   175                                      ; Incr colors
+   176                                  
+   177 000000E1 D945E0                      fld dword zRed
+   178 000000E4 D945D4                      fld dword zRedAdj
+   179 000000E7 DEC1                        faddp st1
+   180 000000E9 D955E0                      fst dword zRed
+   181 000000EC DB5DC8                      fistp dword lngRed
+   182 000000EF 8B45C8                      mov eax,lngRed
+   183 000000F2 25FF000000                  and eax,0FFh
+   184 000000F7 8945C8                      mov lngRed,eax
+   185                                  
+   186 000000FA D945DC                      fld dword zGreen
+   187 000000FD D945D0                      fld dword zGreenAdj
+   188 00000100 DEC1                        faddp st1
+   189 00000102 D955DC                      fst dword zGreen
+   190 00000105 DB5DC4                      fistp dword lngGreen
+   191 00000108 8B45C4                      mov eax,lngGreen
+   192 0000010B 25FF000000                  and eax,0FFh
+   193 00000110 8945C4                      mov lngGreen,eax
+   194                                  
+   195 00000113 D945D8                      fld dword zBlue
+   196 00000116 D945CC                      fld dword zBlueAdj
+   197 00000119 DEC1                        faddp st1
+   198 0000011B D955D8                      fst dword zBlue
+   199 0000011E DB5DC0                      fistp dword lngBlue
+   200 00000121 8B45C0                      mov eax,lngBlue
+   201 00000124 25FF000000                  and eax,0FFh
+   202 00000129 8945C0                      mov lngBlue,eax
+   203                                  
+   204                                  AdvanceXsYs:    
+   205 0000012C D945E8                      fld dword Xs
+   206 0000012F D945BC                      fld dword XStep
+   207 00000132 DEC1                        faddp st1
+   208 00000134 D95DE8                      fstp dword Xs       ; Xs = Xs+XStep
+   209                                      
+   210 00000137 D945E4                      fld dword Ys
+   211 0000013A D945B8                      fld dword YStep
+   212 0000013D DEC1                        faddp st1
+   213 0000013F D95DE4                      fstp dword Ys       ; Ys = Ys+YStep
+   214                                  
+   215 00000142 D945BC                      fld dword XStep
+   216 00000145 D945B4                      fld dword XStepMult
+   217 00000148 DEC9                        fmulp st1
+   218 0000014A D95DBC                      fstp dword XStep    ; XStep=XStep*XStepMult
+   219                                      
+   220 0000014D D945B8                      fld dword YStep
+   221 00000150 D945B0                      fld dword YStepMult
+   222 00000153 DEC9                        fmulp st1
+   223 00000155 D95DB8                      fstp dword YStep    ; YStep=YStep*YStepMult
+   224 00000158 E99B000000                  jmp near NexLL
+   225                                  
+   226                                  TestPush:
+   227 0000015D 3C5B                        cmp AL,91           ; [
+   228 0000015F 7513                        jne TestPop
+   229                                      
+   230 00000161 59                          pop ecx
+   231 00000162 FF75E8                      push dword Xs
+   232 00000165 FF75E4                      push dword Ys
+   233 00000168 FF75BC                      push dword XStep
+   234 0000016B FF75B8                      push dword YStep
+   235 0000016E 51                          push ecx
+   236                                  
+   237 0000016F E984000000                  jmp near NexLL
+   238                                  
+   239                                  TestPop:
+   240 00000174 3C5D                        cmp AL,93           ; ]
+   241 00000176 7513                        jne TestPlus
+   242                                      
+   243 00000178 59                          pop ecx
+   244 00000179 8F45B8                      pop dword YStep
+   245 0000017C 8F45BC                      pop dword XStep
+   246 0000017F 8F45E4                      pop dword Ys
+   247 00000182 8F45E8                      pop dword Xs
+   248 00000185 51                          push ecx
+   249                                  
+   250 00000186 E96D000000                  jmp near NexLL
+   251                                  
+   252                                  TestPlus:
+   253 0000018B 3C2B                        cmp AL,43           ; + turn left
+   254 0000018D 7535                        jne TestMinus
+   255                                      
+   256 0000018F 8B45BC                      mov eax,XStep
+   257 00000192 89459C                      mov zTemp,eax
+   258                                  
+   259 00000195 D945A8                      fld dword zCosAngP
+   260 00000198 D9459C                      fld dword zTemp
+   261 0000019B DEC9                        fmulp st1           ; zCosAngP*zTemp
+   262 0000019D D945AC                      fld dword zSinAngP
+   263 000001A0 D945B8                      fld dword YStep
+   264 000001A3 DEC9                        fmulp st1           ; zSinAngP*YStep
+   265 000001A5 DEE9                        fsubp st1           ; st1-st0 = zCosAngP*zTemp-zSinAngP*YStep
+   266 000001A7 D95DBC                      fstp dword XStep
+   267                                      
+   268 000001AA D945AC                      fld dword zSinAngP
+   269 000001AD D9459C                      fld dword zTemp
+   270 000001B0 DEC9                        fmulp st1           ; zSinAngP*zTemp
+   271 000001B2 D945A8                      fld dword zCosAngP
+   272 000001B5 D945B8                      fld dword YStep
+   273 000001B8 DEC9                        fmulp st1           ; zCosAngP*YStep
+   274 000001BA DEC1                        faddp st1           ; st1+st0 = zSinAngP*zTemp+zCosAngP*YStep
+   275 000001BC D95DB8                      fstp dword YStep
+   276 000001BF E934000000                  jmp NexLL
+   277                                  
+   278                                  TestMinus:
+   279 000001C4 3C2D                        cmp AL,45           ; - turn right
+   280 000001C6 7530                        jne NexLL
+   281                                      
+   282 000001C8 8B45BC                      mov eax,XStep
+   283 000001CB 89459C                      mov zTemp,eax
+   284                                  
+   285 000001CE D945A0                      fld dword zCosAngN
+   286 000001D1 D9459C                      fld dword zTemp
+   287 000001D4 DEC9                        fmulp st1           ; zCosAngN*zTemp
+   288 000001D6 D945A4                      fld dword zSinAngN
+   289 000001D9 D945B8                      fld dword YStep
+   290 000001DC DEC9                        fmulp st1           ; zSinAngN*YStep
+   291 000001DE DEE9                        fsubp st1           ; st1-st0 = zCosAngN*zTemp-zSinAngN*YStep
+   292 000001E0 D95DBC                      fstp dword XStep
+   293                                      
+   294 000001E3 D945A4                      fld dword zSinAngN
+   295 000001E6 D9459C                      fld dword zTemp
+   296 000001E9 DEC9                        fmulp st1           ; zSinAngN*zTemp
+   297 000001EB D945A0                      fld dword zCosAngN
+   298 000001EE D945B8                      fld dword YStep
+   299 000001F1 DEC9                        fmulp st1           ; zCosAngN*YStep
+   300 000001F3 DEC1                        faddp st1           ; st1+st0 = zSinAngN*zTemp+zCosAngN*YStep
+   301 000001F5 D95DB8                      fstp dword YStep
+   302                                      
+   303                                      ;-----------------
+   304                                  NexLL:
+   305 000001F8 59                          pop ecx
+   306 000001F9 41                          inc ecx
+   307 000001FA 3B4DEC                      cmp ecx,LL
+   308 000001FD 0F86A0FEFFFF                jbe near ForLL
+   309                                      
+   310                                      ;mov eax,ecx
+   311                                  ;---------------------------    
+   312                                  GETOUT:
+   313 00000203 5B                          pop ebx
+   314 00000204 5E                          pop esi
+   315 00000205 5F                          pop edi
+   316 00000206 89EC                        mov esp,ebp
+   317 00000208 5D                          pop ebp
+   318 00000209 C21000                      ret 16
+   319                                  ;##############################################    
+   320                                  Bresen:
+   321                                  ; Input ix1,iy1,ix2,iy2, lngRed,lngGreen,lngBlue, 
+   322                                  ;       PICW, PICH, PtrPICArray  
+   323                                  ;       & is PICArray(1-PICW,1-PICH)
+   324                                      
+   325                                      ; Determine steep or shallow slope
+   326                                      
+   327 0000020C 8B4590                      mov eax,ix2
+   328 0000020F 8B5D98                      mov ebx,ix1
+   329 00000212 29D8                        sub eax,ebx     ; eax = (ix2-ix1)
+   330 00000214 3D00000000                  cmp eax,0
+   331 00000219 7D02                        jge absdx
+   332 0000021B F7D8                        neg eax         ; eax = (ix1-ix2)
+   333                                  absdx:
+   334 0000021D 894588                      mov idx,eax     ; Abs(ix2-ix1)
+   335                                  
+   336 00000220 8B458C                      mov eax,iy2
+   337 00000223 8B5D94                      mov ebx,iy1
+   338 00000226 29D8                        sub eax,ebx
+   339 00000228 3D00000000                  cmp eax,0
+   340 0000022D 7D02                        jge absdy
+   341 0000022F F7D8                        neg eax
+   342                                  absdy:
+   343 00000231 894584                      mov idy,eax     ; Abs(iy2-iy1)
+   344                                      
+   345 00000234 B801000000                  mov eax,1
+   346 00000239 89857CFFFFFF                mov jkstep,eax  ; jkstep=1
+   347 0000023F 894580                      mov incx,eax    ; incx=1
+   348                                  
+   349 00000242 8B4588                      mov eax,idx
+   350 00000245 3B4584                      cmp eax,idy
+   351 00000248 7D6A                        jge idxGEidy    ;idx>=idy   Shallow
+   352                                      
+   353                                          ; Steep slope   ; idx<idy  Steep
+   354 0000024A 8B4594                          mov eax,iy1
+   355 0000024D 3B458C                          cmp eax,iy2
+   356 00000250 7E0B                            jle TX2X1
+   357 00000252 B8FFFFFFFF                      mov eax,-1
+   358 00000257 89857CFFFFFF                    mov jkstep,eax  ; jkstep=-1  iy1>iy2
+   359                                  TX2X1:
+   360 0000025D 8B4598                          mov eax,ix1
+   361 00000260 3B4590                          cmp eax,ix2
+   362 00000263 7E08                            jle SET1
+   363 00000265 B8FFFFFFFF                      mov eax,-1
+   364 0000026A 894580                          mov incx,eax    ; incx=-1  ix1>ix2
+   365                                  SET1:   
+   366 0000026D 8B4588                          mov eax,idx
+   367 00000270 D1E0                            shl eax,1
+   368 00000272 2B4584                          sub eax,idy
+   369 00000275 898578FFFFFF                    mov id,eax      ; id=2*idx-idy
+   370 0000027B 8B4588                          mov eax,idx
+   371 0000027E 2B4584                          sub eax,idy
+   372 00000281 D1E0                            shl eax,1
+   373 00000283 898574FFFFFF                    mov ainc,eax    ; ainc=2*(idx-idy)
+   374 00000289 8B4588                          mov eax,idx
+   375 0000028C D1E0                            shl eax,1
+   376 0000028E 898570FFFFFF                    mov binc,eax    ; binc=2*idx
+   377 00000294 8B4594                          mov eax,iy1
+   378 00000297 89856CFFFFFF                    mov j,eax       ; j=iy1
+   379 0000029D 8B458C                          mov eax,iy2
+   380 000002A0 898568FFFFFF                    mov k,eax       ; k=iy2
+   381 000002A6 8B4598                          mov eax,ix1
+   382 000002A9 898564FFFFFF                    mov ix,eax      ; ix=ix1
+   383 000002AF E965000000                      jmp near FIY
+   384                                  
+   385                                  idxGEidy:   ; Shallow slope
+   386 000002B4 8B4598                          mov eax,ix1
+   387 000002B7 3B4590                          cmp eax,ix2
+   388 000002BA 7E0B                            jle TY2Y1
+   389 000002BC B8FFFFFFFF                      mov eax,-1
+   390 000002C1 89857CFFFFFF                    mov jkstep,eax  ; jkstep=-1  ix1>ix2
+   391                                  TY2Y1:
+   392 000002C7 8B4594                          mov eax,iy1
+   393 000002CA 3B458C                          cmp eax,iy2
+   394 000002CD 7E08                            jle SET2
+   395 000002CF B8FFFFFFFF                      mov eax,-1
+   396 000002D4 894580                          mov incx,eax    ; incx=-1  iy1>iy2
+   397                                  SET2:
+   398 000002D7 8B4584                          mov eax,idy
+   399 000002DA D1E0                            shl eax,1
+   400 000002DC 2B4588                          sub eax,idx
+   401 000002DF 898578FFFFFF                    mov id,eax      ; id=2*idy-idx
+   402 000002E5 8B4584                          mov eax,idy
+   403 000002E8 2B4588                          sub eax,idx
+   404 000002EB D1E0                            shl eax,1
+   405 000002ED 898574FFFFFF                    mov ainc,eax    ; ainc=2*(idy-idx)
+   406 000002F3 8B4584                          mov eax,idy
+   407 000002F6 D1E0                            shl eax,1
+   408 000002F8 898570FFFFFF                    mov binc,eax    ; binc=2*idy
+   409 000002FE 8B4598                          mov eax,ix1
+   410 00000301 89856CFFFFFF                    mov j, eax      ; j=ix1
+   411 00000307 8B4590                          mov eax,ix2
+   412 0000030A 898568FFFFFF                    mov k,eax       ; k=ix2
+   413 00000310 8B4594                          mov eax,iy1
+   414 00000313 898564FFFFFF                    mov ix,eax      ; ix=iy1
+   415                                  
+   416                                  FIY:
+   417 00000319 8B8D6CFFFFFF                mov ecx,j
+   418                                  FFIY:
+   419 0000031F 898D60FFFFFF                mov iy,ecx
+   420                                      
+   421 00000325 8B4588                      mov eax,idx
+   422 00000328 3B4584                      cmp eax,idy
+   423 0000032B 7D25                        jge Shallow     ; * ; These jumps could be avoided
+   424                                      ; Steep             ; by separate loops for steep
+   425 0000032D 8B8564FFFFFF                mov eax,ix          ; and shallow slopes but at the
+   426 00000333 89855CFFFFFF                mov ixp,eax         ; cost of longer code.
+   427 00000339 8B8560FFFFFF                mov eax,iy
+   428 0000033F 898558FFFFFF                mov iyp,eax
+   429                                          
+   430 00000345 E88A000000                  Call DLINE      ; + ; Pulling the DLINE code into
+   431                                                          ; here would be a bit faster
+   432 0000034A 3D00000000                  cmp eax,0
+   433 0000034F 7526                        jne Increment   ; *
+   434 00000351 C3                          RET             ; Out of range
+   435                                  
+   436                                  Shallow:
+   437 00000352 8B8564FFFFFF                mov eax,ix
+   438 00000358 898558FFFFFF                mov iyp,eax
+   439 0000035E 8B8560FFFFFF                mov eax,iy
+   440 00000364 89855CFFFFFF                mov ixp,eax
+   441                                      
+   442 0000036A E865000000                  Call DLINE      ; +
+   443                                  
+   444 0000036F 3D00000000                  cmp eax,0
+   445 00000374 7501                        jne Increment
+   446 00000376 C3                          RET             ; Out of range
+   447                                  
+   448                                  Increment:
+   449 00000377 8B8578FFFFFF                mov eax,id
+   450 0000037D 3D00000000                  cmp eax,0
+   451 00000382 7E24                        jle idlez
+   452                                      
+   453 00000384 8B9D74FFFFFF                mov ebx,ainc
+   454 0000038A 01D8                        add eax,ebx
+   455 0000038C 898578FFFFFF                mov id,eax      ; id=id+ainc
+   456 00000392 8B8564FFFFFF                mov eax,ix
+   457 00000398 8B5D80                      mov ebx,incx
+   458 0000039B 01D8                        add eax,ebx
+   459 0000039D 898564FFFFFF                mov ix,eax      ; ix=ix+incx
+   460 000003A3 E90E000000                  jmp NextY
+   461                                  idlez:
+   462 000003A8 8B9D70FFFFFF                mov ebx,binc
+   463 000003AE 01D8                        add eax,ebx
+   464 000003B0 898578FFFFFF                mov id,eax      ; id=id+binc
+   465                                      
+   466                                  NextY:
+   467 000003B6 3B8D68FFFFFF                cmp ecx,k
+   468 000003BC 7501                        jne Incrpoint
+   469 000003BE C3                          RET
+   470                                  Incrpoint:
+   471 000003BF 8B857CFFFFFF                mov eax,jkstep
+   472 000003C5 01C1                        add ecx,eax
+   473 000003C7 3B8D68FFFFFF                cmp ecx,k
+   474 000003CD 0F854CFFFFFF                jne near FFIY
+   475                                      
+   476 000003D3 C3                          RET
+   477                                  
+   478                                  ;============================================================
+   479                                  DLINE: ; In: ixp,iyp, lngRed,lngGreen,lngBlue, PICW,PICH, PtrPICArray
+   480                                         ; ixp 1-PICW,  iyp 1-PICH-1   
+   481                                      
+   482                                         ;edi = edi_origin + 4 * [(iyp-1) * PICW + (ixp-1))]
+   483                                  
+   484 000003D4 8B7DF0                      mov edi,PtrPICArray ; edi_origin
+   485                                      
+   486                                      ; Clip
+   487 000003D7 8B8558FFFFFF                mov eax,iyp
+   488 000003DD 3D01000000                  cmp eax,1
+   489 000003E2 7D06                        jge tupy
+   490 000003E4 B800000000                  mov eax,0           ; Flag out of range
+   491 000003E9 C3                          RET
+   492                                  tupy:
+   493 000003EA 3B45F8                      cmp eax,PICH
+   494 000003ED 7E06                        jle iypOK
+   495 000003EF B800000000                  mov eax,0           ; Flag out of range
+   496 000003F4 C3                          RET
+   497                                  iypOK:
+   498 000003F5 48                          dec eax
+   499 000003F6 8B5DFC                      mov ebx,PICW
+   500 000003F9 F7E3                        mul ebx
+   501                                      
+   502 000003FB 8B9D5CFFFFFF                mov ebx,ixp
+   503 00000401 81FB01000000                cmp ebx,1
+   504 00000407 7D06                        jge tupx
+   505 00000409 B800000000                  mov eax,0           ; Flag out of range
+   506 0000040E C3                          RET
+   507                                  tupx:
+   508 0000040F 3B5DFC                      cmp ebx,PICW
+   509 00000412 7E06                        jle ixpOK
+   510 00000414 B800000000                  mov eax,0           ; Flag out of range
+   511 00000419 C3                          RET
+   512                                  ixpOK:
+   513                                      ;-------------
+   514                                  
+   515 0000041A 4B                          dec ebx
+   516 0000041B 01D8                        add eax,ebx
+   517 0000041D C1E002                      shl eax,2       ; *4
+   518 00000420 01C7                        add edi,eax
+   519                                      
+   520 00000422 8B45C8                      mov eax,lngRed
+   521 00000425 C1E008                      shl eax,8
+   522 00000428 0B45C4                      or eax,lngGreen
+   523 0000042B C1E008                      shl eax,8
+   524 0000042E 0B45C0                      or eax,lngBlue
+   525                                  
+   526 00000431 8907                        mov [edi],eax
+   527 00000433 B801000000                  mov eax,1       ; Flag in range
+   528                                  
+   529 00000438 C3                      RET
+   530                                  ;############################################################
