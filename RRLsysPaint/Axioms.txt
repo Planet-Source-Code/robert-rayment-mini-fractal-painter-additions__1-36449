@@ -1,0 +1,105 @@
+' Eight Default LSys Axioms & parameters for
+' Mini-Fractal Painter by Robert Rayment
+' Comment line
+
+' Axiom Number     0 to 7
+' Axiom$
+' NumberOfStrings  1,2 or 4
+' P$
+' [Q$]
+' [R$]
+' [S$)
+' LevelMax, Level
+' zAngP, zAngN
+' XStep, YStep
+' XStepMult, YStepMult
+
+' Spiral
+0
+GF
+1
+GF+[+F-F-F]-[-G+F+F]
+6,4
+12.5,12.5
+0,3
+1.055,1.055
+' Sparse tree
+1
+FG
+1
+FG+[+F-F-F]-[-G+F+F]
+6,3
+12,-12
+0,-4
+1.01,1.05
+
+' Sparse Leaning bush
+' same as spiral but with + & - angles
+' see also Fern like Bush
+2
+F
+1
+FF+[+F-F-F]-[-F+F+F]
+6,3
+25,-25
+0,-5
+1,1
+
+' Symmetrical fennel like
+3
+F
+1
+F[+F[+F][-F]F][-F[+F][-F]F]F[+F][-F]F
+5,3
+35,-35
+0,-2
+1.02,1.06
+
+' Upright plant
+4
+P
+2
+F[+P][-P]FP
+FF
+9,6
+25,-25
+0,-0.3
+1,1
+
+' Elm like tree (Plant02)
+5
+F
+1
+F[+F]F[-F][F]
+7,5
+30,-30
+0,-2
+1,1
+
+' Fern like bush
+' NB Similar to Sparse Leaning Bush but with
+' different parameters & a few extra Fs
+6
+F
+1
+FF-[-F+F+F]+[+F-F-F+FFF]
+5,3
+30,-30
+0,-2
+1,1
+
+' Tall plant (Plant07)
+7
+P
+4
+PFQ[+P][-P]
+Q[-FFF][+FFF]FQ
+RFS[+R][-R]
+S[-FFF][+FFF]FS
+5,3
+25,-25
+0,-1
+1,0.995
+
+
+

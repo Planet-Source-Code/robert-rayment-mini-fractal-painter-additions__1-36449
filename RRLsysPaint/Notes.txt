@@ -1,0 +1,81 @@
+Mini-Fractal Painter  by Robert Rayment
+
+Note that the files Axioms.txt & LSysDraw.bin must be in the
+same folder as the application.
+
+Guide on effects of Axiom parameters.
+------------------------------------
+
+Level:   Increasing the level increases the size & complexity
+         and vice-versa.  If the image is then too large it
+         can be reduced by setting a smaller YStep and/or the
+         YStep multiplier.  A maximum level is set in the prog
+	 to give a maximum LSys string of around 1MB.  Beyond
+	 this is not really necessary and could give rise to an
+	 'Out of memory' error.
+Angles:  There are positive(P) and negative(N) angles. Swapping
+         them produces a mirror image.
+XStep:   Changing this causes the image to bend over to the
+         left or right.
+YStep:   This is applied linearly as the drawing progresses and
+         so sets the basic size of the image.  Negative values
+         draw upwards.
+XStepMult:  This will increase or decrease the sideways stretch
+            as the drawing proceeds.
+YStepMult:  Like XStepMult but for vertical stretch.
+
+------------------------------------------------------------------
+
+LSys parameters catered for:
+---------------------------
+
+F   Draw, advance pen
+G   Advance pen
+[   Push (save) current pen position
+]   Pop (restore) previously saved pen position
++   Turn to left through angle zAngP
+-   Turn to right through angle zAngN
+
+NB These are basic 'turtle' codes and are a sub-set of the full 
+LSys codes.  However, with the externally defined angles, steps, 
+multipliers & colors the whole system is close to the full LSys
+specification.
+
+------------------------------------------------------------------
+
+There is only one level of Undo which simply swaps the current
+picture with the previous picture - so Undoing again brings
+back the current picture.
+
+Double_click on the clear screen button to clear the screen.
+
+If you develop your own axiom formulae it will be important to
+check that there are matched brackets [ ].
+
+If any bits of the hills are not filled in then right-click on
+those areas to fill in with the StartColor.
+
+The picture can only be saved as BMP.
+
+VB allows BMP, JPG & GIF files to be loaded, which can then be
+added to (metafiles could be included).
+
+The menu VB button toggles between VB & ASM.
+
+Timings are just for the translation and drawing phase and do not
+include the the axiom expansion using the Replace function.
+
+The ASM routine LSysDraw.asm (LSysDraw.bin) translates the LSys 
+string and draws to a Long array (PICArray) which is then blitted
+to the screen - it is much faster than using the VB Line methods.
+It could easily be converted to a DLL - eg see NASM Editor,
+assembler & Tutorial on PSC and A1VBCode.
+
+It is of interest to note that the expanded Axiom string is copied
+to a 1D byte array.  Even with the copying it is much faster to
+scan a byte array than a string array.  Also a byte array is more
+easily scanned in ASM.
+
+Good luck!
+
+
